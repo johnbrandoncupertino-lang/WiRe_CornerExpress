@@ -1170,7 +1170,7 @@ end
 
 local function sendPacket(payload)
   if not serverId or not network then return false, "No server paired" end
-  payload.program = payload.program or "WiReTablet"
+  payload.program = "WiReTablet"
   payload.cc = tonumber(thisCC)
   payload.color = serverColour
   payload.tabletVersion = WiReTver
@@ -1232,7 +1232,7 @@ local function pairSetup()
 end
 
 local function refreshDevices()
-  local packet, err = request({ request = "DEVICE_LIST", search = searchText }, 5)
+  local packet, err = request({ request = "LISTDEVICES", search = searchText }, 5)
   if packet and packet.devices then
     deviceCache = packet.devices
     serverName = packet.serverName or serverName
@@ -1247,7 +1247,7 @@ end
 local function refreshGroups()
   local packet, err = request({ request = "LISTGROUPS" }, 5)
   if packet and packet.groups then
-    groupCache = packet.groups
+    groupCache = packet.lightingGroups or {}
     serverName = packet.serverName or serverName
     status = "Connected"
     saveConfig()
@@ -1280,7 +1280,7 @@ local function sendDeviceCommand(deviceName, cmd)
 end
 
 local function runGroup(groupName)
-  local packet, err = request({ request = "COMMAND_GROUP", group = groupName }, 5)
+  local packet, err = request({ request = "RUN_GROUP", group = groupName }, 5)
   if packet and packet.ok then
     addRecent("G", groupName)
     status = "Ran group " .. groupName
@@ -1293,16 +1293,14 @@ end
 local function chooseCommand(deviceName)
   clear(); header(deviceName)
   print()
-  print("1. ON / OPEN")
-  print("2. OFF / CLOSE")
-  print("3. TOGGLE")
+  print("1. LIGHTS ON")
+  print("2. LIGHTS OFF")
   print("0. Back")
   print()
   write("Command: ")
   local c = read()
   if c == "1" then sendDeviceCommand(deviceName, "ON")
-  elseif c == "2" then sendDeviceCommand(deviceName, "OFF")
-  elseif c == "3" then sendDeviceCommand(deviceName, "TOGGLE") end
+  elseif c == "2" then sendDeviceCommand(deviceName, "OFF") end
 end
 
 local function filteredDevices()
@@ -1312,7 +1310,7 @@ local function filteredDevices()
     local d = deviceCache[i]
     local name = tostring(d.name or d.deviceName or d.cc or "Unknown")
     local state = tostring(d.state or d.deviceState or "")
-    if s == "" or string.find(string.lower(name .. " " .. state), s, 1, true) then
+    if d.deviceType == "Energy" and (s == "" or string.find(string.lower(name .. " " .. state), s, 1, true)) then
       list[#list+1] = d
     end
   end
@@ -1414,8 +1412,8 @@ local function home()
     print("Colour: " .. tostring(serverColour or "?"))
     print("Status: " .. status)
     print()
-    print("1. Devices")
-    print("2. Groups")
+    print("1. Lights")
+    print("2. Lighting groups")
     print("3. Recent")
     print("4. Pair / Re-pair")
     print("0. Exit")
