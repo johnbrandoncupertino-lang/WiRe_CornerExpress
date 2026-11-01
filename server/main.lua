@@ -2368,7 +2368,7 @@ do
                   ccSuccess = sendTriggerResponse(id, {
                     response = "COMMAND_RESULT", ok = ok,
                     device = newCmdData.device, command = command,
-                    error = ok and nil or "Unknown light or unsupported command",
+                    error = not ok and "Unknown light or unsupported command" or nil,
                   })
                 elseif request == "RUN_GROUP" then
                   local groupName = newCmdData.group
@@ -2378,7 +2378,7 @@ do
                   ccSuccess = sendTriggerResponse(id, {
                     response = "COMMAND_RESULT", ok = ok,
                     group = groupName, missing = missing,
-                    error = ok and nil or "Unknown group or group contains non-light actions",
+                    error = not ok and "Unknown group or group contains non-light actions" or nil,
                   })
                 end
               elseif newCmdData.program == "WiReTrigger" then
