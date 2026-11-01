@@ -28,6 +28,12 @@ local packages = {
         target = INSTALL_DIR .. "/trigger.lua",
         startup = "shell.run(\"" .. INSTALL_DIR .. "/trigger.lua\")"
      }, 
+    tablet = {
+        title = "WiRe Pocket Lighting Remote",
+        source = "https://raw.githubusercontent.com/johnbrandoncupertino-lang/WiRe_CornerExpress/main/tablet/main.lua",
+        target = INSTALL_DIR .. "/tablet.lua",
+        startup = "shell.run(\"" .. INSTALL_DIR .. "/tablet.lua\")"
+    },
     sensor = {
         title = "WiRe Sensor",
         source = "sensor/main.lua",
@@ -197,7 +203,8 @@ local function menu()
         print("2. Install Client")
         print("3. Install Trigger")
         print("4. Install Sensor")
-        print("5. Exit")
+        print("5. Install Pocket Lighting Remote")
+        print("6. Exit")
         print()
         write("Select option: ")
 
@@ -216,6 +223,9 @@ local function menu()
             installPackage("sensor")
             return
         elseif choice == "5" then
+            installPackage("tablet")
+            return
+        elseif choice == "6" then
             clear()
             return
         else
