@@ -86,7 +86,10 @@ local function checkHttp()
 end
 
 local function downloadFile(sourcePath, targetPath)
-    local url = BASE_URL .. sourcePath
+    local url = sourcePath
+    if not string.match(sourcePath, "^https?://") then
+        url = BASE_URL .. sourcePath
+    end
 
     writeLine("Downloading:", colors.lightBlue)
     print(url)
