@@ -1803,11 +1803,49 @@ local function sendTriggerResponse(targetId, payload)
   return true
 end
 
+--# A pocket lighting remote may only run groups made entirely of WiRe Energy devices.
+local function isLightingGroup(groupName, depth, visited)
+  depth = depth or 0
+  visited = visited or {}
+  if depth > 10 or visited[groupName] then return false end
+  local group = wireGroups[groupName]
+  if type(group) ~= "table" or #group == 0 then return false end
+  visited[groupName] = true
+  for i = 1, #group do
+    local action = group[i]
+    if type(action) ~= "table" then
+      visited[groupName] = nil
+      return false
+    elseif action.group then
+      if not isLightingGroup(action.group, depth + 1, visited) then
+        visited[groupName] = nil
+        return false
+      end
+    elseif action.name and action.cmd then
+      local target = findClientByName(action.name)
+      if not target or target.deviceType ~= "Energy" or (action.cmd ~= "ON" and action.cmd ~= "OFF") then
+        visited[groupName] = nil
+        return false
+      end
+    else
+      visited[groupName] = nil
+      return false
+    end
+  end
+  visited[groupName] = nil
+  return true
+end
+
 local function sendGroupList(targetId)
   local names = sortedGroupNames()
+  local lightingGroups = {}
+  for i = 1, #names do
+    if isLightingGroup(names[i]) then lightingGroups[#lightingGroups + 1] = names[i] end
+  end
   return sendTriggerResponse(targetId, {
     response = "GROUPLIST",
     groups = names,
+    lightingGroups = lightingGroups,
     groupCount = #names,
     serverName = ccSettings.name,
     serverNote = ccSettings.note,
@@ -2313,6 +2351,36 @@ do
                   sortDeviceList(newCmdData)
                 end
                 ccSuccess = true
+              elseif newCmdData.program == "WiReTablet" then
+                --# Pocket remote requests are restricted to WiRe Energy devices and lighting-only groups.
+                local request = type(newCmdData.request) == "string" and string.upper(newCmdData.request) or nil
+                if request == "SERVERINFO" then
+                  ccSuccess = sendServerInfo(id)
+                elseif request == "LISTGROUPS" then
+                  ccSuccess = sendGroupList(id)
+                elseif request == "LISTDEVICES" then
+                  ccSuccess = sendDeviceList(id)
+                elseif request == "COMMAND_DEVICE" then
+                  local target = type(newCmdData.device) == "string" and findClientByName(newCmdData.device) or nil
+                  local command = type(newCmdData.cmd) == "string" and string.upper(newCmdData.cmd) or nil
+                  local ok = target ~= nil and target.deviceType == "Energy" and (command == "ON" or command == "OFF")
+                  if ok then ok = sendCommandToClient(target, command) end
+                  ccSuccess = sendTriggerResponse(id, {
+                    response = "COMMAND_RESULT", ok = ok,
+                    device = newCmdData.device, command = command,
+                    error = ok and nil or "Unknown light or unsupported command",
+                  })
+                elseif request == "RUN_GROUP" then
+                  local groupName = newCmdData.group
+                  local ok = type(groupName) == "string" and isLightingGroup(groupName)
+                  local missing = {}
+                  if ok then ok, missing = activateGroup(groupName) end
+                  ccSuccess = sendTriggerResponse(id, {
+                    response = "COMMAND_RESULT", ok = ok,
+                    group = groupName, missing = missing,
+                    error = ok and nil or "Unknown group or group contains non-light actions",
+                  })
+                end
               elseif newCmdData.program == "WiReTrigger" then
                 --# Hidden trigger packet. This does NOT add the trigger to the visible client list.
                 --# Supported trigger actions:
